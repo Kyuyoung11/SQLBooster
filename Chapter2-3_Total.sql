@@ -82,6 +82,27 @@ GROUP BY ROLLUP(TO_CHAR(ORD.ORD_DT, 'YYYYMM'), ORD.CUS_ID);
 -- ************************************************
 
 	-- ROLLUP을 카테시안 조인으로 대신하기
+
+SELECT CASE WHEN RN.RNO = 1 THEN TO_CHAR(ORD.ORD_DT, 'YYYYMM')
+                WHEN RN.RNO = 2 THEN TO_CHAR(ORD.ORD_DT, 'YYYYMM')
+                WHEN RN.RNO = 3 THEN 'Total' END ORD_YM
+        , CASE WHEN RN.RNO = 1 THEN ORD.CUS_ID
+                WHEN RN.RNO = 2 THEN 'Total'
+                WHEN RN.RNO = 3 THEN 'Total' END CUS_ID
+        , SUM(ORD_AMT) AS ORD_AMT
+FROM T_ORD ORD
+    , (
+        SELECT ROWNUM RNO FROM DUAL CONNECT BY ROWNUM <= 3
+    ) RN
+WHERE ORD.ORD_DT BETWEEN '20170301' AND '20170430'
+AND ORD.CUS_ID IN ('CUS_0001', 'CUS_0002')
+GROUP BY CASE WHEN RN.RNO = 1 THEN TO_CHAR(ORD.ORD_DT, 'YYYYMM')
+                WHEN RN.RNO = 2 THEN TO_CHAR(ORD.ORD_DT, 'YYYYMM')
+                WHEN RN.RNO = 3 THEN 'Total' END
+        , CASE WHEN RN.RNO = 1 THEN ORD.CUS_ID
+                WHEN RN.RNO = 2 THEN 'Total'
+                WHEN RN.RNO = 3 THEN 'Total' END;
+
 	SELECT  CASE WHEN T2.RNO = 1 THEN TO_CHAR(T1.ORD_DT,'YYYYMM')
 				  WHEN T2.RNO = 2 THEN TO_CHAR(T1.ORD_DT,'YYYYMM')
 				  WHEN T2.RNO = 3 THEN 'Total' END ORD_YM
@@ -103,6 +124,7 @@ GROUP BY ROLLUP(TO_CHAR(ORD.ORD_DT, 'YYYYMM'), ORD.CUS_ID);
 				  WHEN T2.RNO = 2 THEN 'Total'
 				  WHEN T2.RNO = 3 THEN 'Total' END;
 
+SELECT ROWNUM RNO FROM DUAL CONNECT BY ROWNUM <= 3;
 
 
 -- ************************************************
@@ -129,6 +151,14 @@ GROUP BY ROLLUP(TO_CHAR(ORD.ORD_DT, 'YYYYMM'), ORD.CUS_ID);
 	SELECT  'Total' ,'Total' ,SUM(T1.ORD_AMT)
 	FROM    T_RES T1;
 
+
+		  SELECT  TO_CHAR(T1.ORD_DT,'YYYYMM') ORD_YM ,T1.CUS_ID
+				  ,SUM(T1.ORD_AMT) ORD_AMT
+		  FROM    T_ORD T1
+		  WHERE   T1.CUS_ID IN ('CUS_0001','CUS_0002')
+		  AND     T1.ORD_DT >= TO_DATE('20170301','YYYYMMDD')
+		  AND     T1.ORD_DT < TO_DATE('20170501','YYYYMMDD')
+		  GROUP BY TO_CHAR(T1.ORD_DT,'YYYYMM') ,T1.CUS_ID
 
 
 -- ************************************************
