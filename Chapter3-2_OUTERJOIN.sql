@@ -31,6 +31,18 @@
 -- ************************************************
 
 	-- 아우터-조인, 한 명은 평가가 있음, 한 명은 평가가 없음
+SELECT CUS.CUS_ID
+    , CUS.CUS_NM
+    , EVL.CUS_ID
+    , EVL.ITM_ID
+    , EVL.EVL_LST_NO
+FROM M_CUS CUS
+    LEFT OUTER JOIN T_ITM_EVL EVL
+        ON EVL.CUS_ID = CUS.CUS_ID
+WHERE CUS.CUS_ID IN ('CUS_0002', 'CUS_0011')
+ORDER BY CUS.CUS_ID;
+
+-- 답지
 	SELECT  T1.CUS_ID ,T1.CUS_NM
 			,T2.CUS_ID ,T2.ITM_ID ,T2.EVL_LST_NO
 	FROM    M_CUS T1
