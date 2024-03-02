@@ -157,6 +157,18 @@ ORDER BY ORD.ORD_DT;
 -- ************************************************
 
 	-- 코드값을 가져오는 SELECT 절 상관 서브쿼리
+SELECT ITM.ITM_TP
+    , CD.BAS_CD_NM
+    , ITM.ITM_ID
+    , ITM.ITM_NM
+FROM M_ITM ITM
+    INNER JOIN C_BAS_CD CD
+        ON CD.BAS_CD_DV = 'ITM_TP'
+        AND CD.LNG_CD = 'KO'
+        AND CD.BAS_CD = ITM.ITM_TP;
+
+
+-- 답
 	SELECT  T1.ITM_TP
 			,(SELECT  A.BAS_CD_NM
 			  FROM    C_BAS_CD A
@@ -167,11 +179,26 @@ ORDER BY ORD.ORD_DT;
 
 
 
+
 -- ************************************************
 -- PART I - 4.1.3 SQL2
 -- ************************************************
 
 	-- 고객정보를 가져오는 SELECT 절 상관 서브쿼리
+
+SELECT CUS.CUS_ID
+    , TO_CHAR(ORD.ORD_DT, 'YYYYMMDD') ORD_YMD
+    , CUS.CUS_NM
+    , CUS.CUS_GD
+    , ORD.ORD_AMT
+FROM M_CUS CUS
+    INNER JOIN T_ORD ORD
+        ON ORD.CUS_ID = CUS.CUS_ID
+	WHERE   ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
+	AND     ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD');
+
+
+-- 답
 	SELECT  T1.CUS_ID
 			,TO_CHAR(T1.ORD_DT,'YYYYMMDD') ORD_YMD
 			,(SELECT A.CUS_NM FROM M_CUS A WHERE A.CUS_ID = T1.CUS_ID) CUS_NM
@@ -188,6 +215,38 @@ ORDER BY ORD.ORD_DT;
 -- ************************************************
 
 	-- 인라인-뷰 안에서 SELECT 절 서브쿼리를 사용한 예
+SELECT CUS_ORD.CUS_ID
+    , CUS_ORD.ORD_YM
+    , MAX(CUS_ORD.CUS_NM)
+    , MAX(CUS_ORD.CUS_GD)
+    , CUS_ORD.ORD_ST_NM
+    , CUS_ORD.PAY_TP_NM
+    , SUM(CUS_ORD.ORD_AMT) ORD_AMT
+FROM (SELECT CUS.CUS_ID
+           , TO_CHAR(ORD.ORD_DT, 'YYYYMM')      ORD_YM
+           , CUS.CUS_NM
+           , CUS.CUS_GD
+           , (SELECT CD.BAS_CD_NM
+              FROM C_BAS_CD CD
+              WHERE CD.BAS_CD_DV = 'ORD_ST'
+                AND CD.LNG_CD = 'KO'
+                AND CD.BAS_CD = ORD.ORD_ST)     ORD_ST_NM
+           , (SELECT ORD_CD.BAS_CD_NM
+              FROM C_BAS_CD ORD_CD
+              WHERE ORD_CD.BAS_CD_DV = 'PAY_TP'
+                AND ORD_CD.LNG_CD = 'KO'
+                AND ORD_CD.BAS_CD = ORD.PAY_TP) PAY_TP_NM
+           , ORD.ORD_AMT
+      FROM M_CUS CUS
+               INNER JOIN T_ORD ORD
+                          ON ORD.CUS_ID = CUS.CUS_ID
+      WHERE ORD.ORD_DT >= TO_DATE('20170801', 'YYYYMMDD')
+        AND ORD.ORD_DT < TO_DATE('20170901', 'YYYYMMDD'))CUS_ORD
+GROUP BY CUS_ORD.CUS_ID, CUS_ORD.ORD_YM, CUS_ORD.ORD_ST_NM, CUS_ORD.PAY_TP_NM
+;
+
+SELECT * FROM C_BAS_CD;
+
 	SELECT  T1.CUS_ID ,SUBSTR(T1.ORD_YMD,1,6) ORD_YM
 			,MAX(T1.CUS_NM) ,MAX(T1.CUS_GD)
 			,T1.ORD_ST_NM ,T1.PAY_TP_NM
@@ -217,6 +276,35 @@ ORDER BY ORD.ORD_DT;
 -- ************************************************
 
 	-- 서브쿼리 안에서 조인을 사용한 예
+SELECT
+    ORD.ORD_DT
+    , ORDD.ORD_QTY
+    , ORDD.ITM_ID
+    , (SELECT ITM_NM
+        FROM M_ITM ITM
+        WHERE ITM.ITM_ID = ORDD.ITM_ID) ITM_NM
+    , (SELECT SUM(EVL.EVL_PT) / COUNT(*)
+        FROM T_ITM_EVL EVL
+            INNER JOIN M_ITM ITM
+            ON ITM.ITM_ID = EVL.ITM_ID
+        WHERE EVL.ITM_ID = ORDD.ITM_ID
+        AND EVL.EVL_DT < ORD.ORD_DT
+      ) AVG_EVL_PT
+FROM T_ORD ORD
+    INNER JOIN T_ORD_DET ORDD
+    ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+WHERE ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
+  AND ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD')
+ORDER BY ORD.ORD_DT, ORDD.ITM_ID;
+
+
+SELECT * FROM M_ITM;
+SELECT * FROM T_ORD;
+SELECT * FROM T_ITM_EVL;
+SELECT * FROM T_ORD_DET;
+
+
+-- 답
 	SELECT  T1.ORD_DT ,T2.ORD_QTY ,T2.ITM_ID ,T3.ITM_NM
 	,(    SELECT  SUM(B.EVL_PT) / COUNT(*)
 				  FROM    M_ITM A
