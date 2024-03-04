@@ -185,7 +185,7 @@ FROM M_ITM ITM
 -- ************************************************
 
 	-- 고객정보를 가져오는 SELECT 절 상관 서브쿼리
-
+-- 조인 사용
 SELECT CUS.CUS_ID
     , TO_CHAR(ORD.ORD_DT, 'YYYYMMDD') ORD_YMD
     , CUS.CUS_NM
@@ -197,6 +197,19 @@ FROM M_CUS CUS
 	WHERE   ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
 	AND     ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD');
 
+
+-- 서브쿼리로
+SELECT ORD.CUS_ID
+    , TO_CHAR(ORD.ORD_DT, 'YYYYMMDD') ORD_YMD
+    , (SELECT CUS.CUS_NM FROM M_CUS CUS WHERE CUS.CUS_ID = ORD.CUS_ID) CUS_NM
+    , (SELECT CUS.CUS_GD FROM M_CUS CUS WHERE CUS.CUS_ID = ORD.CUS_ID) CUS_GD
+    , ORD.ORD_AMT
+FROM T_ORD ORD
+	WHERE   ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
+	AND     ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD');
+
+
+;
 
 -- 답
 	SELECT  T1.CUS_ID
@@ -215,6 +228,8 @@ FROM M_CUS CUS
 -- ************************************************
 
 	-- 인라인-뷰 안에서 SELECT 절 서브쿼리를 사용한 예
+
+-- 조인
 SELECT CUS_ORD.CUS_ID
     , CUS_ORD.ORD_YM
     , MAX(CUS_ORD.CUS_NM)
@@ -245,8 +260,36 @@ FROM (SELECT CUS.CUS_ID
 GROUP BY CUS_ORD.CUS_ID, CUS_ORD.ORD_YM, CUS_ORD.ORD_ST_NM, CUS_ORD.PAY_TP_NM
 ;
 
-SELECT * FROM C_BAS_CD;
+SELECT
+    CUS_ID
+    , ORD_YM
+    , MAX(CUS_NM)
+    , MAX(CUS_GD)
+    , ORD_ST_NM
+    , PAY_TP_NM
+    , SUM(ORD_AMT)
+FROM (
+    SELECT ORD.CUS_ID
+        , TO_CHAR(ORD.ORD_DT, 'YYYYMM') ORD_YM
+    , (SELECT CUS.CUS_NM FROM M_CUS CUS WHERE CUS.CUS_ID = ORD.CUS_ID) CUS_NM
+    , (SELECT CUS.CUS_GD FROM M_CUS CUS WHERE CUS.CUS_ID = ORD.CUS_ID) CUS_GD
+    , (SELECT CD.BAS_CD_NM
+       FROM C_BAS_CD CD
+       WHERE CD.BAS_CD_DV = 'ORD_ST' AND CD.LNG_CD = 'KO' AND CD.BAS_CD = ORD.ORD_ST) ORD_ST_NM
+    , (SELECT CD.BAS_CD_NM
+       FROM C_BAS_CD CD
+       WHERE CD.BAS_CD_DV = 'PAY_TP' AND CD.LNG_CD = 'KO' AND CD.BAS_CD = ORD.PAY_TP) PAY_TP_NM
+    , ORD_AMT FROM T_ORD ORD
+        WHERE   ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
+        AND     ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD')
+    )
+GROUP BY CUS_ID, ORD_YM, ORD_ST_NM, PAY_TP_NM
+ORDER BY CUS_ID, ORD_YM, ORD_ST_NM, PAY_TP_NM;
 
+;
+
+
+--답
 	SELECT  T1.CUS_ID ,SUBSTR(T1.ORD_YMD,1,6) ORD_YM
 			,MAX(T1.CUS_NM) ,MAX(T1.CUS_GD)
 			,T1.ORD_ST_NM ,T1.PAY_TP_NM
@@ -266,7 +309,8 @@ SELECT * FROM C_BAS_CD;
 			AND     T1.ORD_DT < TO_DATE('20170901','YYYYMMDD')
 			AND     T1.CUS_ID = T2.CUS_ID
 			) T1
-	GROUP BY T1.CUS_ID ,SUBSTR(T1.ORD_YMD,1,6) ,T1.ORD_ST_NM ,T1.PAY_TP_NM;
+	GROUP BY T1.CUS_ID ,SUBSTR(T1.ORD_YMD,1,6) ,T1.ORD_ST_NM ,T1.PAY_TP_NM
+	ORDER BY T1.CUS_ID ,SUBSTR(T1.ORD_YMD,1,6) ,T1.ORD_ST_NM ,T1.PAY_TP_NM;
 
 
 
@@ -280,19 +324,17 @@ SELECT
     ORD.ORD_DT
     , ORDD.ORD_QTY
     , ORDD.ITM_ID
-    , (SELECT ITM_NM
-        FROM M_ITM ITM
-        WHERE ITM.ITM_ID = ORDD.ITM_ID) ITM_NM
-    , (SELECT SUM(EVL.EVL_PT) / COUNT(*)
+    , ITM.ITM_NM
+    , (SELECT SUM(EVL.EVL_PT) / COUNT(EVL.EVL_LST_NO)
         FROM T_ITM_EVL EVL
-            INNER JOIN M_ITM ITM
-            ON ITM.ITM_ID = EVL.ITM_ID
-        WHERE EVL.ITM_ID = ORDD.ITM_ID
+        WHERE EVL.ITM_ID = ITM.ITM_ID
         AND EVL.EVL_DT < ORD.ORD_DT
       ) AVG_EVL_PT
 FROM T_ORD ORD
     INNER JOIN T_ORD_DET ORDD
     ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+    INNER JOIN M_ITM ITM
+        ON ITM.ITM_ID = ORDD.ITM_ID
 WHERE ORD.ORD_DT >= TO_DATE('20170801','YYYYMMDD')
   AND ORD.ORD_DT < TO_DATE('20170901','YYYYMMDD')
 ORDER BY ORD.ORD_DT, ORDD.ITM_ID;
@@ -324,6 +366,7 @@ SELECT * FROM T_ORD_DET;
 
 
 
+
 -- ************************************************
 -- PART I - 4.1.4 SQL1
 -- ************************************************
@@ -350,6 +393,20 @@ SELECT * FROM T_ORD_DET;
 
 	-- 고객 이름과 등급을 합쳐서 하나의 컬럼으로 처리
 	-- 단가(UNT_PRC)와 주문수량(ORD_QTY)를 곱해서 주문금액으로 처리.
+SELECT
+    ORD.ORD_DT
+    , ORD.CUS_ID
+    , (SELECT (CUS.CUS_NM||'('||CUS_GD||')') FROM M_CUS CUS WHERE CUS.CUS_ID = ORD.CUS_ID) CUS_NM_GD
+    , (SELECT SUM(ORDD.UNT_PRC * ORDD.ORD_QTY) FROM T_ORD_DET ORDD WHERE ORDD.ORD_SEQ = ORD.ORD_SEQ) ORD_AMT
+    , ORD.ORD_AMT
+FROM T_ORD ORD
+WHERE   ORD.ORD_DT >= TO_DATE('20170401','YYYYMMDD')
+AND     ORD.ORD_DT < TO_DATE('20170501','YYYYMMDD');
+
+
+
+
+-- 답
 	SELECT  T1.ORD_DT ,T1.CUS_ID
 			,(SELECT A.CUS_NM||'('||CUS_GD||')' FROM M_CUS A WHERE A.CUS_ID = T1.CUS_ID) CUS_NM_GD
 			,(SELECT SUM(A.UNT_PRC * A.ORD_QTY) FROM T_ORD_DET A WHERE A.ORD_SEQ = T1.ORD_SEQ) ORD_AMT
@@ -364,6 +421,25 @@ SELECT * FROM T_ORD_DET;
 
 
 	-- 고객별 마지막 ORD_SEQ의 주문금액
+SELECT
+    RANK_ORD.CUS_ID
+    , CUS.CUS_NM
+    , RANK_ORD.ORD_AMT
+FROM (
+    SELECT ROW_NUMBER() over (PARTITION BY ORD.CUS_ID ORDER BY ORD.ORD_SEQ DESC) AS RANK
+        , ORD.CUS_ID
+        , ORD.ORD_AMT
+    FROM T_ORD ORD
+     ) RANK_ORD
+    INNER JOIN M_CUS CUS
+        ON CUS.CUS_ID = RANK_ORD.CUS_ID
+WHERE RANK_ORD.RANK = 1
+ORDER BY RANK_ORD.CUS_ID;
+
+
+
+
+-- 답
 	SELECT  T1.CUS_ID
 			,T1.CUS_NM
 			,(SELECT  TO_NUMBER(
@@ -382,6 +458,24 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 고객별 마지막 ORD_SEQ의 주문금액 ? 중첩된 서브쿼리
+SELECT CUS.CUS_ID
+    , CUS.CUS_NM
+    , (
+        SELECT ORD.ORD_AMT
+        FROM T_ORD ORD
+        WHERE ORD.CUS_ID = CUS.CUS_ID
+        AND ORD.ORD_SEQ = (
+                SELECT MAX(ORD_SEQ)
+                FROM T_ORD SUB_ORD
+                WHERE SUB_ORD.CUS_ID = CUS.CUS_ID
+                GROUP BY SUB_ORD.CUS_ID
+            )
+ ) ORD_AMT
+FROM M_CUS CUS
+ORDER BY CUS.CUS_ID;
+
+
+;
 	SELECT  T1.CUS_ID
 			,T1.CUS_NM
 			,(
@@ -468,6 +562,20 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 3월 주문 건수가 4건 이상인 고객의 3월달 주문 리스트
+SELECT *
+FROM T_ORD ORD
+WHERE 1=1
+    AND ORD.ORD_DT >= TO_DATE ('20170301', 'YYYYMMDD')
+    AND ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD')
+    AND ORD.CUS_ID IN (SELECT T1.CUS_ID
+                     FROM T_ORD T1
+                     WHERE T1.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+                       AND T1.ORD_DT < TO_DATE('20170401', 'YYYYMMDD')
+                     GROUP BY T1.CUS_ID
+                     HAVING COUNT(*) >= 4);
+
+
+
 	SELECT  *
 	FROM    T_ORD T1
 	WHERE   T1.ORD_DT >= TO_DATE('20170301','YYYYMMDD')
@@ -489,6 +597,21 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 3월 주문 건수가 4건 이상인 고객의 3월달 주문 리스트 ? 조인으로 처리
+SELECT *
+FROM T_ORD ORD
+    INNER JOIN (
+        SELECT SUB_ORD.CUS_ID
+        FROM T_ORD SUB_ORD
+        WHERE SUB_ORD.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+            AND SUB_ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD')
+        GROUP BY SUB_ORD.CUS_ID
+        HAVING COUNT(*) >= 4
+    ) SUB_ORD
+    ON SUB_ORD.CUS_ID = ORD.CUS_ID
+WHERE ORD.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+    AND ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD');
+
+
 	SELECT  T1.*
 	FROM    T_ORD T1
 			,(
@@ -511,6 +634,18 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 3월에 주문이 존재하는 고객들을 조회
+SELECT *
+FROM M_CUS CUS
+WHERE EXISTS(
+    SELECT *
+    FROM T_ORD ORD
+    WHERE ORD.CUS_ID = CUS.CUS_ID
+    AND ORD.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+    AND ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD')
+);
+
+
+-- 답
 	SELECT  *
 	FROM    M_CUS T1
 	WHERE   EXISTS(
@@ -529,6 +664,26 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 3월에 ELEC 아이템유형의 주문이 존재하는 고객들을 조회
+SELECT *
+FROM M_CUS CUS
+WHERE EXISTS(
+    SELECT *
+    FROM T_ORD ORD
+        INNER JOIN T_ORD_DET ORDD
+            ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+        INNER JOIN M_ITM ITM
+            ON ITM.ITM_ID = ORDD.ITM_ID
+            AND ITM.ITM_TP = 'ELEC'
+    WHERE ORD.CUS_ID = CUS.CUS_ID
+    AND ORD.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+    AND ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD')
+);
+
+SELECT * FROM M_ITM;
+
+
+
+
 	SELECT  *
 	FROM    M_CUS T1
 	WHERE   EXISTS(
@@ -552,6 +707,17 @@ SELECT * FROM T_ORD_DET;
 -- ************************************************
 
 	-- 전체 고객을 조회, 3월에 주문이 존재하는지 여부를 같이 보여줌
+SELECT CUS.CUS_ID, CUS.CUS_NM
+    , CASE WHEN EXISTS (SELECT *
+                        FROM T_ORD ORD
+                        WHERE ORD.CUS_ID = CUS.CUS_ID
+                          AND ORD.ORD_DT >= TO_DATE('20170301', 'YYYYMMDD')
+                          AND ORD.ORD_DT < TO_DATE('20170401', 'YYYYMMDD'))
+        THEN 'Y'
+        ELSE 'N' END AS ORD_YN_03
+FROM M_CUS CUS;
+
+
 	SELECT  T1.CUS_ID ,T1.CUS_NM
 			,(CASE  WHEN
 					  EXISTS(
@@ -565,331 +731,5 @@ SELECT * FROM T_ORD_DET;
 			  ELSE 'N' END) ORD_YN_03
 	FROM    M_CUS T1;
 
-
-
-
--- ************************************************
--- PART I - 4.2.1 SQL1
--- ************************************************
-
-	-- MERGE 문을 위한 테스트 테이블 생성
-	CREATE TABLE M_CUS_CUD_TEST AS
-	SELECT  *
-	FROM    M_CUS T1;
-
-	ALTER TABLE M_CUS_CUD_TEST
-		ADD CONSTRAINT PK_M_CUS_CUD_TEST PRIMARY KEY(CUS_ID) USING INDEX;
-
-
-
--- ************************************************
--- PART I - 4.2.1 SQL2
--- ************************************************
-
-	-- CUS_0090 고객을 입력하거나 변경하는 PL/SQL
-	DECLARE v_EXISTS_YN varchar2(1);
-	BEGIN
-		SELECT  NVL(MAX('Y'),'N')
-		INTO    v_EXISTS_YN
-		FROM    DUAL A
-		WHERE   EXISTS(
-				  SELECT  *
-				  FROM    M_CUS_CUD_TEST T1
-				  WHERE   T1.CUS_ID = 'CUS_0090'
-				  );
-
-		IF v_EXISTS_YN = 'N' THEN
-			INSERT INTO M_CUS_CUD_TEST (CUS_ID ,CUS_NM ,CUS_GD)
-			VALUES  ('CUS_0090' ,'NAME_0090' ,'A');
-
-			DBMS_OUTPUT.PUT_LINE('INSERT NEW CUST');
-		ELSE
-			UPDATE  M_CUS_CUD_TEST T1
-			SET     T1.CUS_NM = 'NAME_0090'
-					,T1.CUS_GD = 'A'
-			WHERE   CUS_ID = 'CUS_0090'
-			;
-
-			DBMS_OUTPUT.PUT_LINE('UPDATE OLD CUST');
-		END IF;
-
-		COMMIT;
-	END;
-
-
-
--- ************************************************
--- PART I - 4.2.1 SQL3
--- ************************************************
-
-	-- 고객을 입력하거나 변경하는 SQL ? MERGE 문으로 처리
-	MERGE INTO M_CUS_CUD_TEST T1
-	USING (
-		  SELECT  'CUS_0090' CUS_ID
-				  ,'NAME_0090' CUS_NM
-				  ,'A' CUS_GD
-		  FROM    DUAL
-		  ) T2
-		  ON (T1.CUS_ID = T2.CUS_ID)
-	WHEN MATCHED THEN UPDATE SET T1.CUS_NM = T2.CUS_NM
-								,T1.CUS_GD = T2.CUS_GD
-	WHEN NOT MATCHED THEN INSERT (T1.CUS_ID ,T1.CUS_NM ,T1.CUS_GD)
-						  VALUES(T2.CUS_ID ,T2.CUS_NM ,T2.CUS_GD)
-						  ;
-	COMMIT;
-
-
-
--- ************************************************
--- PART I - 4.2.2 SQL1
--- ************************************************
-
-	-- 월별고객주문 테이블 생성 및 기조 데이터 입력
-	CREATE TABLE S_CUS_YM
-	(
-		BAS_YM	VARCHAR2(6) NOT NULL,
-		CUS_ID 	VARCHAR2(40) NOT NULL,
-		ITM_TP 	VARCHAR2(40) NOT NULL,
-		ORD_QTY NUMBER(18,3) NULL,
-		ORD_AMT NUMBER(18,3) NULL
-	);
-
-	CREATE UNIQUE INDEX PK_S_CUS_YM ON S_CUS_YM(BAS_YM, CUS_ID, ITM_TP);
-
-	ALTER TABLE S_CUS_YM
-		ADD CONSTRAINT PK_S_CUM_YM PRIMARY KEY (BAS_YM, CUS_ID, ITM_TP);
-
-	INSERT INTO S_CUS_YM (BAS_YM ,CUS_ID ,ITM_TP ,ORD_QTY ,ORD_AMT)
-	SELECT  '201702' BAS_YM ,T1.CUS_ID ,T2.BAS_CD ITM_TP ,NULL ORD_QTY ,NULL ORD_AMT
-	FROM    M_CUS T1
-			,C_BAS_CD T2
-	WHERE   T2.BAS_CD_DV = 'ITM_TP'
-	AND     T2.LNG_CD = 'KO';
-
-	COMMIT;
-
-
-
--- ************************************************
--- PART I - 4.2.2 SQL2
--- ************************************************
-
-	-- 월별고객주문의 주문수량, 주문금액 업데이트
-	UPDATE  S_CUS_YM T1
-	SET     T1.ORD_QTY = (
-					SELECT  SUM(B.ORD_QTY)
-					FROM    T_ORD A
-							,T_ORD_DET B
-							,M_ITM C
-					WHERE   A.ORD_SEQ = B.ORD_SEQ
-					AND     C.ITM_ID = B.ITM_ID
-					AND     C.ITM_TP = T1.ITM_TP
-					AND     A.CUS_ID = T1.CUS_ID
-					AND     A.ORD_DT >= TO_DATE(T1.BAS_YM||'01','YYYYMMDD')
-					AND     A.ORD_DT < ADD_MONTHS(TO_DATE(T1.BAS_YM||'01','YYYYMMDD'), 1)
-					)
-			,T1.ORD_AMT = (
-					SELECT  SUM(B.UNT_PRC * B.ORD_QTY)
-					FROM    T_ORD A
-							,T_ORD_DET B
-							,M_ITM C
-					WHERE   A.ORD_SEQ = B.ORD_SEQ
-					AND     C.ITM_ID = B.ITM_ID
-					AND     C.ITM_TP = T1.ITM_TP
-					AND     A.CUS_ID = T1.CUS_ID
-					AND     A.ORD_DT >= TO_DATE(T1.BAS_YM||'01','YYYYMMDD')
-					AND     A.ORD_DT < ADD_MONTHS(TO_DATE(T1.BAS_YM||'01','YYYYMMDD'), 1)
-					)
-	WHERE   T1.BAS_YM = '201702';
-
-	COMMIT;
-
-
--- ************************************************
--- PART I - 4.2.2 SQL3
--- ************************************************
-
-	-- 월별고객주문의 주문금액, 주문수량 업데이트 ? 머지 사용
-	MERGE INTO S_CUS_YM T1
-	USING (
-			  SELECT  A.CUS_ID
-					  ,C.ITM_TP
-					  ,SUM(B.ORD_QTY) ORD_QTY
-					  ,SUM(B.UNT_PRC * B.ORD_QTY) ORD_AMT
-			  FROM    T_ORD A
-					  ,T_ORD_DET B
-					  ,M_ITM C
-			  WHERE   A.ORD_SEQ = B.ORD_SEQ
-			  AND     C.ITM_ID = B.ITM_ID
-			  AND     A.ORD_DT >= TO_DATE('201702'||'01','YYYYMMDD')
-			  AND     A.ORD_DT < ADD_MONTHS(TO_DATE('201702'||'01','YYYYMMDD'), 1)
-			  GROUP BY A.CUS_ID
-					  ,C.ITM_TP
-			  ) T2
-			  ON (T1.BAS_YM = '201702'
-				  AND T1.CUS_ID = T2.CUS_ID
-				  AND T1.ITM_TP = T2.ITM_TP
-				  )
-	WHEN MATCHED THEN UPDATE SET T1.ORD_QTY = T2.ORD_QTY
-								,T1.ORD_AMT = T2.ORD_AMT
-								;
-	COMMIT;
-
-
--- ************************************************
--- PART I - 4.2.2 SQL4
--- ************************************************
-
-	-- 월별고객주문의 주문금액, 주문수량 업데이트 ? 반복 서브쿼리 제거
-	UPDATE  S_CUS_YM T1
-	SET     (T1.ORD_QTY ,T1.ORD_AMT) =
-			(
-			  SELECT  SUM(B.ORD_QTY) ORD_QTY
-					  ,SUM(B.UNT_PRC * B.ORD_QTY) ORD_AMT
-			  FROM    T_ORD A
-					  ,T_ORD_DET B
-					  ,M_ITM C
-			  WHERE   A.ORD_SEQ = B.ORD_SEQ
-			  AND     C.ITM_ID = B.ITM_ID
-			  AND     A.ORD_DT >= TO_DATE('201702'||'01','YYYYMMDD')
-			  AND     A.ORD_DT < ADD_MONTHS(TO_DATE('201702'||'01','YYYYMMDD'), 1)
-			  AND     C.ITM_TP = T1.ITM_TP
-			  AND     A.CUS_ID = T1.CUS_ID
-			  GROUP BY A.CUS_ID
-					  ,C.ITM_TP
-			)
-	WHERE   T1.BAS_YM = '201702';
-
-	COMMIT;
-
-
-
--- ************************************************
--- PART I - 4.3.1 SQL1
--- ************************************************
-
-	-- 고객, 아이템유형별 주문금액 구하기 ? 인라인-뷰 이용
-	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
-			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
-	WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
-			,T0.ORD_AMT
-	FROM    (
-			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
-			FROM    T_ORD A
-					,T_ORD_DET B
-					,M_ITM C
-			WHERE   A.ORD_SEQ = B.ORD_SEQ
-			AND     B.ITM_ID = C.ITM_ID
-			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
-			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
-			GROUP BY A.CUS_ID ,C.ITM_TP
-			) T0
-			,M_CUS T1
-	WHERE   T1.CUS_ID = T0.CUS_ID
-	ORDER BY T0.CUS_ID ,T0.ITM_TP;
-
-
-
-
--- ************************************************
--- PART I - 4.3.1 SQL2
--- ************************************************
-
-	-- 고객, 아이템유형별 주문금액 구하기 ? WITH~AS 이용
-	WITH T_CUS_ITM_AMT AS (
-			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
-			FROM    T_ORD A
-					,T_ORD_DET B
-					,M_ITM C
-			WHERE   A.ORD_SEQ = B.ORD_SEQ
-			AND     B.ITM_ID = C.ITM_ID
-			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
-			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
-			GROUP BY A.CUS_ID ,C.ITM_TP
-			)
-	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
-			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
-	WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
-			,T0.ORD_AMT
-	FROM    T_CUS_ITM_AMT T0
-			,M_CUS T1
-	WHERE   T1.CUS_ID = T0.CUS_ID
-	ORDER BY T0.CUS_ID ,T0.ITM_TP;
-
-
-
-
-
--- ************************************************
--- PART I - 4.3.1 SQL3
--- ************************************************
-
-	-- 고객, 아이템유형별 주문금액 구하기, 전체주문 대비 주문금액비율 추가 ? WITH~AS 이용
-	WITH T_CUS_ITM_AMT AS (
-			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
-			FROM    T_ORD A
-					,T_ORD_DET B
-					,M_ITM C
-			WHERE   A.ORD_SEQ = B.ORD_SEQ
-			AND     B.ITM_ID = C.ITM_ID
-			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
-			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
-			GROUP BY A.CUS_ID ,C.ITM_TP
-			)
-		,T_TTL_AMT AS(
-			SELECT  SUM(A.ORD_AMT) ORD_AMT
-			FROM    T_CUS_ITM_AMT A
-			)
-	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
-			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
-				WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
-			,T0.ORD_AMT
-			,TO_CHAR(ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2)) || '%' ORD_AMT_RT
-	FROM    T_CUS_ITM_AMT T0
-			,M_CUS T1
-			,T_TTL_AMT T2
-	WHERE   T1.CUS_ID = T0.CUS_ID
-	ORDER BY ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2) DESC;
-
-
-
-
--- ************************************************
--- PART I - 4.3.2 SQL1
--- ************************************************
-
-	-- 주문금액 비율 컬럼 추가
-	ALTER TABLE S_CUS_YM ADD ORD_AMT_RT NUMBER(18,3);
-
-
-
--- ************************************************
--- PART I - 4.3.2 SQL2
--- ************************************************
-
-	-- WITH~AS 절을 사용한 INSERT문
-	INSERT INTO S_CUS_YM (BAS_YM ,CUS_ID ,ITM_TP ,ORD_QTY ,ORD_AMT ,ORD_AMT_RT)
-	WITH T_CUS_ITM_AMT AS (
-			SELECT  TO_CHAR(A.ORD_DT,'YYYYMM') BAS_YM ,A.CUS_ID ,C.ITM_TP
-					,SUM(B.ORD_QTY) ORD_QTY ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
-			FROM    T_ORD A
-					,T_ORD_DET B
-					,M_ITM C
-			WHERE   A.ORD_SEQ = B.ORD_SEQ
-			AND     B.ITM_ID = C.ITM_ID
-			AND     A.ORD_DT >= TO_DATE('20170401','YYYYMMDD')
-			AND     A.ORD_DT < TO_DATE('20170501','YYYYMMDD')
-			GROUP BY TO_CHAR(A.ORD_DT,'YYYYMM') ,A.CUS_ID ,C.ITM_TP
-			)
-		,T_TTL_AMT AS(
-			SELECT  SUM(A.ORD_AMT) ORD_AMT
-			FROM    T_CUS_ITM_AMT A
-			)
-	SELECT  T0.BAS_YM ,T0.CUS_ID ,T0.ITM_TP ,T0.ORD_QTY ,T0.ORD_AMT
-			,ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2) ORD_AMT_RT
-	FROM    T_CUS_ITM_AMT T0
-			,M_CUS T1
-			,T_TTL_AMT T2
-	WHERE   T1.CUS_ID = T0.CUS_ID;
 
 
