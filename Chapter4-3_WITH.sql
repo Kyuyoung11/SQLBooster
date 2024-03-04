@@ -1,0 +1,219 @@
+
+-- ************************************************
+-- PART I - 4.3.1 SQL1
+-- ************************************************
+
+	-- 고객, 아이템유형별 주문금액 구하기 ? 인라인-뷰 이용
+SELECT
+    CUS.CUS_ID
+    ,MAX(CUS.CUS_NM) CUS_NM
+    ,ITM.ITM_TP
+    ,(SELECT MAX(CD.BAS_CD_NM) FROM C_BAS_CD CD WHERE CD.LNG_CD = 'KO' AND CD.BAS_CD_DV = 'ITM_TP'
+                                AND CD.BAS_CD = ITM.ITM_TP) BAS_CD_NM
+    , SUM(ORD.ORD_AMT) ORD_AMT
+FROM M_CUS CUS
+    INNER JOIN T_ORD ORD
+        ON CUS.CUS_ID = ORD.CUS_ID
+        AND ORD.ORD_DT >= TO_DATE('20170201', 'YYYYMMDD')
+        AND ORD.ORD_DT < TO_DATE('20170301', 'YYYYMMDD')
+    INNER JOIN T_ORD_DET ORDD
+        ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+    INNER JOIN M_ITM ITM
+        ON ITM.ITM_ID = ORDD.ITM_ID
+GROUP BY CUS.CUS_ID, ITM.ITM_TP
+ORDER BY CUS.CUS_ID, ITM.ITM_TP;
+
+SELECT * FROM C_BAS_CD;
+
+
+-- 답
+	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
+			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
+	WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
+			,T0.ORD_AMT
+	FROM    (
+			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
+			FROM    T_ORD A
+					,T_ORD_DET B
+					,M_ITM C
+			WHERE   A.ORD_SEQ = B.ORD_SEQ
+			AND     B.ITM_ID = C.ITM_ID
+			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
+			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
+			GROUP BY A.CUS_ID ,C.ITM_TP
+			) T0
+			,M_CUS T1
+	WHERE   T1.CUS_ID = T0.CUS_ID
+	ORDER BY T0.CUS_ID ,T0.ITM_TP;
+
+
+
+
+-- ************************************************
+-- PART I - 4.3.1 SQL2
+-- ************************************************
+
+	-- 고객, 아이템유형별 주문금액 구하기 ? WITH~AS 이용\
+WITH ORD_ITM AS (
+SELECT
+    ORD.CUS_ID
+    , ITM.ITM_TP
+    , SUM(ORDD.UNT_PRC * ORDD.ORD_QTY) ORD_AMT
+FROM T_ORD ORD
+    INNER JOIN T_ORD_DET ORDD
+        ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+    INNER JOIN M_ITM ITM
+        ON ITM.ITM_ID = ORDD.ITM_ID
+    WHERE ORD.ORD_DT >= TO_DATE('20170201', 'YYYYMMDD')
+        AND ORD.ORD_DT < TO_DATE('20170301', 'YYYYMMDD')
+    GROUP BY ORD.CUS_ID, ITM.ITM_TP
+    )
+SELECT
+    CUS.CUS_ID
+    , CUS.CUS_NM
+    ,OI.ITM_TP
+    ,(SELECT MAX(CD.BAS_CD_NM) FROM C_BAS_CD CD WHERE CD.LNG_CD = 'KO' AND CD.BAS_CD_DV = 'ITM_TP'
+                                AND CD.BAS_CD = OI.ITM_TP) BAS_CD_NM
+    , OI.ORD_AMT
+    FROM M_CUS CUS
+        INNER JOIN ORD_ITM OI
+            ON OI.CUS_ID = CUS.CUS_ID
+ORDER BY CUS.CUS_ID, OI.ITM_TP;
+
+
+
+
+
+
+-- 답
+	WITH T_CUS_ITM_AMT AS (
+			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
+			FROM    T_ORD A
+					,T_ORD_DET B
+					,M_ITM C
+			WHERE   A.ORD_SEQ = B.ORD_SEQ
+			AND     B.ITM_ID = C.ITM_ID
+			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
+			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
+			GROUP BY A.CUS_ID ,C.ITM_TP
+			)
+	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
+			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
+	WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
+			,T0.ORD_AMT
+	FROM    T_CUS_ITM_AMT T0
+			,M_CUS T1
+	WHERE   T1.CUS_ID = T0.CUS_ID
+	ORDER BY T0.CUS_ID ,T0.ITM_TP;
+
+
+
+
+
+-- ************************************************
+-- PART I - 4.3.1 SQL3
+-- ************************************************
+
+	-- 고객, 아이템유형별 주문금액 구하기, 전체주문 대비 주문금액비율 추가 ? WITH~AS 이용
+WITH ORD_ITM AS (
+SELECT
+    ORD.CUS_ID
+    , ITM.ITM_TP
+    , SUM(ORDD.UNT_PRC * ORDD.ORD_QTY) ORD_AMT
+FROM T_ORD ORD
+    INNER JOIN T_ORD_DET ORDD
+        ON ORDD.ORD_SEQ = ORD.ORD_SEQ
+    INNER JOIN M_ITM ITM
+        ON ITM.ITM_ID = ORDD.ITM_ID
+    WHERE ORD.ORD_DT >= TO_DATE('20170201', 'YYYYMMDD')
+        AND ORD.ORD_DT < TO_DATE('20170301', 'YYYYMMDD')
+    GROUP BY ORD.CUS_ID, ITM.ITM_TP
+    )
+SELECT
+    CUS.CUS_ID
+    , CUS.CUS_NM
+    ,OI.ITM_TP
+    ,(SELECT MAX(CD.BAS_CD_NM) FROM C_BAS_CD CD WHERE CD.LNG_CD = 'KO' AND CD.BAS_CD_DV = 'ITM_TP'
+                                AND CD.BAS_CD = OI.ITM_TP) BAS_CD_NM
+    , OI.ORD_AMT
+    , (SELECT ROUND(OI.ORD_AMT/SUM(ORD.ORD_AMT)*100, 2)||'%'
+            FROM T_ORD ORD
+            WHERE ORD.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
+			AND     ORD.ORD_DT < TO_DATE('20170301','YYYYMMDD')) ORD_AMT_RT
+    FROM M_CUS CUS
+        INNER JOIN ORD_ITM OI
+            ON OI.CUS_ID = CUS.CUS_ID
+ORDER BY ORD_AMT_RT DESC;
+
+
+
+
+-- 답
+	WITH T_CUS_ITM_AMT AS (
+			SELECT  A.CUS_ID ,C.ITM_TP ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
+			FROM    T_ORD A
+					,T_ORD_DET B
+					,M_ITM C
+			WHERE   A.ORD_SEQ = B.ORD_SEQ
+			AND     B.ITM_ID = C.ITM_ID
+			AND     A.ORD_DT >= TO_DATE('20170201','YYYYMMDD')
+			AND     A.ORD_DT < TO_DATE('20170301','YYYYMMDD')
+			GROUP BY A.CUS_ID ,C.ITM_TP
+			)
+		,T_TTL_AMT AS(
+			SELECT  SUM(A.ORD_AMT) ORD_AMT
+			FROM    T_CUS_ITM_AMT A
+			)
+	SELECT  T0.CUS_ID ,T1.CUS_NM ,T0.ITM_TP
+			,(SELECT A.BAS_CD_NM FROM C_BAS_CD A
+				WHERE A.LNG_CD = 'KO' AND A.BAS_CD_DV = 'ITM_TP' AND A.BAS_CD = T0.ITM_TP) ITM_TP_NM
+			,T0.ORD_AMT
+			,TO_CHAR(ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2)) || '%' ORD_AMT_RT
+	FROM    T_CUS_ITM_AMT T0
+			,M_CUS T1
+			,T_TTL_AMT T2
+	WHERE   T1.CUS_ID = T0.CUS_ID
+	ORDER BY ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2) DESC;
+
+
+
+
+-- ************************************************
+-- PART I - 4.3.2 SQL1
+-- ************************************************
+
+	-- 주문금액 비율 컬럼 추가
+	ALTER TABLE S_CUS_YM ADD ORD_AMT_RT NUMBER(18,3);
+
+
+
+-- ************************************************
+-- PART I - 4.3.2 SQL2
+-- ************************************************
+
+	-- WITH~AS 절을 사용한 INSERT문
+	INSERT INTO S_CUS_YM (BAS_YM ,CUS_ID ,ITM_TP ,ORD_QTY ,ORD_AMT ,ORD_AMT_RT)
+	WITH T_CUS_ITM_AMT AS (
+			SELECT  TO_CHAR(A.ORD_DT,'YYYYMM') BAS_YM ,A.CUS_ID ,C.ITM_TP
+					,SUM(B.ORD_QTY) ORD_QTY ,SUM(B.ORD_QTY * B.UNT_PRC) ORD_AMT
+			FROM    T_ORD A
+					,T_ORD_DET B
+					,M_ITM C
+			WHERE   A.ORD_SEQ = B.ORD_SEQ
+			AND     B.ITM_ID = C.ITM_ID
+			AND     A.ORD_DT >= TO_DATE('20170401','YYYYMMDD')
+			AND     A.ORD_DT < TO_DATE('20170501','YYYYMMDD')
+			GROUP BY TO_CHAR(A.ORD_DT,'YYYYMM') ,A.CUS_ID ,C.ITM_TP
+			)
+		,T_TTL_AMT AS(
+			SELECT  SUM(A.ORD_AMT) ORD_AMT
+			FROM    T_CUS_ITM_AMT A
+			)
+	SELECT  T0.BAS_YM ,T0.CUS_ID ,T0.ITM_TP ,T0.ORD_QTY ,T0.ORD_AMT
+			,ROUND(T0.ORD_AMT / T2.ORD_AMT * 100,2) ORD_AMT_RT
+	FROM    T_CUS_ITM_AMT T0
+			,M_CUS T1
+			,T_TTL_AMT T2
+	WHERE   T1.CUS_ID = T0.CUS_ID;
+
+
