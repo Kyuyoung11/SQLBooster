@@ -28,12 +28,24 @@ FROM    T_ORD_BIG T1
 WHERE   T1.ORD_SEQ = 343;
 
 
+
+SELECT  T1.SQL_ID ,T1.CHILD_NUMBER ,T1.SQL_TEXT
+FROM    V$SQL T1
+WHERE   T1.SQL_TEXT LIKE '%GATHER_PLAN_STATISTICS%'
+ORDER BY T1.LAST_ACTIVE_TIME DESC;
+
+
+SELECT  *
+FROM    TABLE(DBMS_XPLAN.DISPLAY_CURSOR('64zytgkun017h',0,'ALLSTATS LAST'));
+
+
 -- ************************************************
 -- PART II - 6.1.1 SQL3
 -- ************************************************
 
 -- ORD_SEQ 컬럼에 인덱스 구성
 CREATE INDEX X_T_ORD_BIG_TEST ON T_ORD_BIG(ORD_SEQ);
+
 
 
 -- ************************************************
