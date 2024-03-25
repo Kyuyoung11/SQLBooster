@@ -60,6 +60,9 @@ WHERE   T1.ORD_YMD = '20170316'
 GROUP BY T1.CUS_ID
 ORDER BY T1.CUS_ID;
 
+SELECT  *
+FROM    TABLE(DBMS_XPLAN.DISPLAY_CURSOR('0pghnam4br94r',0,'ALLSTATS LAST'));
+
 
 -- ************************************************
 -- PART II - 6.1.6 SQL1
@@ -75,6 +78,8 @@ WHERE   T1.ORD_YMD = '20170316'
 GROUP BY T1.CUS_ID
 ORDER BY T1.CUS_ID;
 
+SELECT  *
+FROM    TABLE(DBMS_XPLAN.DISPLAY_CURSOR('br1774wn1f4yc',0,'ALLSTATS LAST'));
 
 
 -- ************************************************
