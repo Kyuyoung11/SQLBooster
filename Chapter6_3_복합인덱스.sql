@@ -34,6 +34,16 @@ AND     T1.CUS_ID = 'CUS_0075'
 GROUP BY T1.ORD_ST;
 
 
+SELECT  T1.SQL_ID ,T1.CHILD_NUMBER ,T1.SQL_TEXT
+FROM    V$SQL T1
+WHERE   T1.SQL_TEXT LIKE '%GATHER_PLAN_STATISTICS INDEX(T1 X_T_ORD_BIG_3)%'
+ORDER BY T1.LAST_ACTIVE_TIME DESC;
+
+
+SELECT  *
+FROM    TABLE(DBMS_XPLAN.DISPLAY_CURSOR('03u9urh9t9k76',0,'ALLSTATS LAST'));
+
+
 -- ************************************************
 -- PART II - 6.3.2 SQL1
 -- ************************************************
@@ -81,7 +91,8 @@ WHERE   EXISTS(
 -- ************************************************
 
 -- 많은 조건이 걸리는 SQL
-SELECT  COUNT(*)
+SELECT  /*+ GATHER_PLAN_STATISTICS INDEX(T1 X_T_ORD_BIG_3) */
+    COUNT(*)
 FROM    T_ORD_BIG T1
 WHERE   T1.ORD_AMT = 2400
 AND     T1.PAY_TP = 'CARD'
