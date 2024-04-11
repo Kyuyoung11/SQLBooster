@@ -32,6 +32,17 @@ WHERE   SUBSTR(T1.ORD_YMD,1,6) = '201703'
 AND     T1.CUS_ID = 'CUS_0075'
 GROUP BY T1.ORD_ST;
 
+
+
+SELECT  T1.SQL_ID ,T1.CHILD_NUMBER ,T1.SQL_TEXT
+FROM    V$SQL T1
+WHERE   T1.SQL_TEXT LIKE '%GATHER_PLAN_STATISTICS%'
+ORDER BY T1.LAST_ACTIVE_TIME DESC;
+
+
+SELECT  *
+FROM    TABLE(DBMS_XPLAN.DISPLAY_CURSOR('72hgcu944yrp8',0,'ALLSTATS LAST'));
+
 -- ************************************************
 -- PART II - 6.4.2 SQL2
 -- ************************************************
@@ -43,6 +54,7 @@ FROM    T_ORD_BIG T1
 WHERE   T1.ORD_YMD LIKE '201703%'
 AND     T1.CUS_ID = 'CUS_0075'
 GROUP BY T1.ORD_ST;
+
 
 -- ************************************************
 -- PART II - 6.4.3 SQL1
