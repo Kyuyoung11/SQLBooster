@@ -30,14 +30,14 @@
 	SET     T1.BAL_AMT = T1.BAL_AMT - 500
 	WHERE   T1.ACC_NO = 'ACC1';
 
-    SELECT * FROM M_ACC T1
-    WHERE   T1.ACC_NO = 'ACC1';
-
 	UPDATE  M_ACC T1
 	SET     T1.BAL_AMT = T1.BAL_AMT + 500
 	WHERE   T1.ACC_NO = 'ACC2';
 
+    SELECT * FROM M_ACC T1
+    WHERE   T1.ACC_NO = 'ACC2';
 	COMMIT;
+ROLLBACK;
 
 
 -- ************************************************
@@ -54,8 +54,6 @@
 	WHERE   T1.ACC_NO = 'ACC4';
 
 	SELECT  * FROM M_ACC;
-
-ROLLBACK;
 
 
 
