@@ -236,11 +236,12 @@
 -- ************************************************
 
 	-- RANK 분석함수
-	SELECT  T1.CUS_ID
-			,SUM(T1.ORD_AMT) ORD_AMT
-			,RANK() OVER(ORDER BY SUM(T1.ORD_AMT) DESC) RNK
-	FROM    T_ORD T1
-	GROUP BY T1.CUS_ID;
+SELECT T1.CUS_ID
+    , SUM(T1.ORD_AMT) ORA_AMT
+    , RANK() OVER(ORDER BY SUM(T1.ORD_AMT) DESC) RNK
+FROM T_ORD T1
+GROUP BY T1.CUS_ID;
+
 
 
 
